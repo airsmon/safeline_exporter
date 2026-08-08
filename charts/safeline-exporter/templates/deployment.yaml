@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "safeline-exporter.fullname" . }}
+  labels:
+    {{- include "safeline-exporter.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "safeline-exporter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "safeline-exporter.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: safeline-exporter
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SAFELINE_ADDRESS
+              value: {{ .Values.safeline.address | quote }}
+            {{- if or .Values.secret.create .Values.existingSecret }}
+            - name: SAFELINE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "safeline-exporter.secretName" . }}
+                  key: {{ .Values.existingSecretKey | quote }}
+            {{- end }}
+            - name: SAFELINE_EXPORTER_LISTEN_ADDRESS
+              value: {{ printf ":%v" .Values.exporter.port | quote }}
+            - name: SAFELINE_EXPORTER_METRICS_PATH
+              value: {{ .Values.exporter.metricsPath | quote }}
+            - name: SAFELINE_EXPORTER_WINDOW
+              value: {{ .Values.collector.window | quote }}
+            - name: SAFELINE_EXPORTER_MAX_EVENTS
+              value: {{ .Values.collector.maxEvents | quote }}
+            - name: SAFELINE_EXPORTER_SCRAPE_TIMEOUT
+              value: {{ .Values.collector.scrapeTimeout | quote }}
+            - name: SAFELINE_TIMEOUT
+              value: {{ .Values.safeline.timeout | quote }}
+            - name: SAFELINE_INSECURE_SKIP_VERIFY
+              value: {{ .Values.safeline.insecureSkipVerify | quote }}
+            - name: SAFELINE_ALLOW_HTTP
+              value: {{ .Values.safeline.allowHTTP | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.exporter.port }}
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}

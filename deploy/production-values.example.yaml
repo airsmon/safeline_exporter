@@ -1,0 +1,54 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/airsmon/safeline_exporter
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+existingSecret: safeline-exporter
+existingSecretKey: api-token
+
+secret:
+  create: false
+
+safeline:
+  address: https://safeline.example.com
+  timeout: 15s
+  insecureSkipVerify: false
+  allowHTTP: false
+
+exporter:
+  port: 9719
+  metricsPath: /metrics
+
+collector:
+  window: 24h
+  maxEvents: 10000
+  scrapeTimeout: 25s
+
+service:
+  type: ClusterIP
+  port: 9719
+
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  interval: 60s
+  scrapeTimeout: 30s
+  labels:
+    release: kube-prometheus-stack
+
+grafanaDashboard:
+  enabled: true
+  namespace: monitoring
+  filename: safeline-exporter-overview.json
+  labels:
+    grafana_dashboard: "1"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

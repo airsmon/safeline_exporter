@@ -1,0 +1,31 @@
+safeline_exporter
+.env
+.env.*
+!.env.example
+
+# Local credentials and cluster access files.
+*.key
+*.pem
+*.p12
+*.pfx
+kubeconfig
+kubeconfig.*
+
+# Build and test output.
+bin/
+dist/
+coverage.out
+*.prof
+*.test
+*.tgz
+*.tar
+*.tar.gz
+
+# Production-specific deployment state stays local.
+deploy/production-values.yaml
+deploy/DEPLOYMENT_STATUS.md
+
+# Editor and operating-system metadata.
+.DS_Store
+.idea/
+.vscode/

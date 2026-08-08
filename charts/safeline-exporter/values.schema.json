@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "SafeLine Exporter Helm values",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "existingSecret": {
+      "type": "string"
+    },
+    "existingSecretKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "safeline": {
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "timeout": { "type": "string", "minLength": 1 },
+        "insecureSkipVerify": { "type": "boolean" },
+        "allowHTTP": { "type": "boolean" }
+      }
+    },
+    "exporter": {
+      "type": "object",
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "metricsPath": { "type": "string", "pattern": "^/" }
+      }
+    },
+    "collector": {
+      "type": "object",
+      "properties": {
+        "window": { "type": "string", "enum": ["24h"] },
+        "maxEvents": { "type": "integer", "minimum": 1 },
+        "scrapeTimeout": { "type": "string", "minLength": 1 }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+      }
+    },
+    "grafanaDashboard": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "namespace": { "type": "string" },
+        "filename": { "type": "string", "pattern": "^[^/]+\\.json$" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "content": { "type": "string" }
+      }
+    }
+  }
+}

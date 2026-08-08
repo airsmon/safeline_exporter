@@ -1,0 +1,111 @@
+replicaCount: 1
+
+image:
+  # Override this with the registry path where you published the exporter image.
+  repository: safeline-exporter
+  pullPolicy: IfNotPresent
+  # Defaults to Chart.appVersion when empty.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Name and key of a Secret that already contains the SafeLine API token.
+# This is the recommended token source. No token is stored in this values file.
+existingSecret: ""
+existingSecretKey: api-token
+
+secret:
+  # Creating a Secret through Helm stores its token in Helm release data. Prefer
+  # existingSecret. If enabled, supply secret.apiToken outside this file, for
+  # example with a protected values file or --set-string.
+  create: false
+  annotations: {}
+
+safeline:
+  # Required: SafeLine base URL, for example https://safeline.example.com.
+  address: ""
+  timeout: 15s
+  insecureSkipVerify: false
+  allowHTTP: false
+
+exporter:
+  port: 9719
+  metricsPath: /metrics
+
+collector:
+  # SafeLine CE currently supports only the 24-hour statistics window.
+  window: 24h
+  maxEvents: 10000
+  scrapeTimeout: 25s
+
+service:
+  type: ClusterIP
+  port: 9719
+  annotations: {}
+
+serviceMonitor:
+  enabled: false
+  # Defaults to the release namespace when empty.
+  namespace: ""
+  interval: 60s
+  scrapeTimeout: 30s
+  labels: {}
+  annotations: {}
+  honorLabels: false
+  relabelings: []
+  metricRelabelings: []
+
+# Optionally let Helm install the dashboard ConfigMap consumed by a Grafana
+# dashboard sidecar. Keep the JSON source under grafana/ and pass it with:
+# --set-file grafanaDashboard.content=grafana/safeline-exporter-overview.json
+grafanaDashboard:
+  enabled: false
+  # Defaults to the release namespace when empty.
+  namespace: ""
+  filename: safeline-exporter-overview.json
+  labels:
+    grafana_dashboard: "1"
+  annotations: {}
+  content: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+
+resources: {}
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ""
+terminationGracePeriodSeconds: 30
