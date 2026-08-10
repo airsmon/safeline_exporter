@@ -350,9 +350,11 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 当前运行架构。",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": { "mode": "thresholds" },
+          "noValue": "未知",
           "thresholds": {
             "mode": "absolute",
             "steps": [{ "color": "blue", "value": null }]
@@ -360,13 +362,13 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 7, "x": 10, "y": 6 },
+      "gridPos": { "h": 3, "w": 4, "x": 10, "y": 6 },
       "id": 10,
       "options": {
-        "colorMode": "none",
+        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical",
+        "justifyMode": "center",
+        "orientation": "horizontal",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "name",
         "wideLayout": true
@@ -377,119 +379,129 @@
           "editorMode": "code",
           "expr": "max by (arch) (safeline_system_arch_info{job=~\"$job\",instance=~\"$instance\"}) == 1",
           "instant": true,
-          "legendFormat": "架构：{{arch}}",
+          "legendFormat": "{{arch}}",
           "range": false,
           "refId": "A"
+        }
+      ],
+      "title": "系统架构",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine API 返回的当前生效授权级别代码。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "noValue": "未知",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 3, "w": 5, "x": 14, "y": 6 },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
           "expr": "max by (effective_edition) (safeline_system_edition_info{job=~\"$job\",instance=~\"$instance\"}) == 1",
           "instant": true,
-          "legendFormat": "版本：{{effective_edition}}",
+          "legendFormat": "等级 {{effective_edition}}",
           "range": false,
-          "refId": "B"
+          "refId": "A"
+        }
+      ],
+      "title": "授权级别",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 当前检测器模式；数值由 SafeLine API 定义。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "noValue": "未知",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "blue", "value": null }]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 3, "w": 5, "x": 19, "y": 6 },
+      "id": 30,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "name",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
           "expr": "max by (mode) (safeline_detector_mode_info{job=~\"$job\",instance=~\"$instance\"}) == 1",
           "instant": true,
-          "legendFormat": "检测模式：{{mode}}",
+          "legendFormat": "模式 {{mode}}",
           "range": false,
-          "refId": "C"
+          "refId": "A"
         }
       ],
-      "title": "系统信息",
+      "title": "检测模式",
       "type": "stat"
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 基础许可证有效状态。",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "red", "text": "无有效许可" },
+                "1": { "color": "green", "text": "有效" }
+              },
+              "type": "value"
+            }
+          ],
+          "max": 1,
+          "min": 0,
+          "noValue": "未提供",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "red", "value": null },
-              { "color": "orange", "value": 7 },
-              { "color": "green", "value": 30 }
+              { "color": "green", "value": 1 }
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "许可证有效" },
-            "properties": [
-              { "id": "max", "value": 1 },
-              { "id": "min", "value": 0 },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": { "color": "red", "text": "无效" },
-                      "1": { "color": "green", "text": "有效" }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "距到期天数" },
-            "properties": [{ "id": "unit", "value": "d" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "版本过期" },
-            "properties": [
-              { "id": "max", "value": 1 },
-              { "id": "min", "value": 0 },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": { "color": "green", "text": "否" },
-                      "1": { "color": "red", "text": "是" }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "版本弃用" },
-            "properties": [
-              { "id": "max", "value": 1 },
-              { "id": "min", "value": 0 },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": { "color": "green", "text": "否" },
-                      "1": { "color": "red", "text": "是" }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
-      "gridPos": { "h": 7, "w": 7, "x": 17, "y": 6 },
-      "id": 11,
+      "gridPos": { "h": 4, "w": 4, "x": 10, "y": 9 },
+      "id": 31,
       "options": {
-        "colorMode": "value",
+        "colorMode": "background",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical",
+        "justifyMode": "center",
+        "orientation": "horizontal",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto",
+        "textMode": "value",
         "wideLayout": true
       },
       "targets": [
@@ -498,19 +510,98 @@
           "editorMode": "code",
           "expr": "min(safeline_license_valid{job=~\"$job\",instance=~\"$instance\"})",
           "instant": true,
-          "legendFormat": "许可证有效",
+          "legendFormat": "许可证",
           "range": false,
           "refId": "A"
+        }
+      ],
+      "title": "许可证状态",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "距离许可证到期的天数；SafeLine 未返回到期时间时显示“未提供”。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "noValue": "未提供",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 7 },
+              { "color": "green", "value": 30 }
+            ]
+          },
+          "unit": "d"
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 14, "y": 9 },
+      "id": 32,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "min(safeline_license_days_until_expiry{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "min(safeline_license_days_until_expiry{job=~\"$job\",instance=~\"$instance\"}) and on() max(safeline_license_expiry_timestamp_seconds{job=~\"$job\",instance=~\"$instance\"}) > 0",
           "instant": true,
-          "legendFormat": "距到期天数",
+          "legendFormat": "剩余天数",
           "range": false,
-          "refId": "B"
+          "refId": "A"
+        }
+      ],
+      "title": "许可证剩余",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 是否报告当前版本已经过期。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "green", "text": "正常" },
+                "1": { "color": "red", "text": "已过期" }
+              },
+              "type": "value"
+            }
+          ],
+          "max": 1,
+          "min": 0,
+          "noValue": "未知",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 9 },
+      "id": 33,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
@@ -518,8 +609,52 @@
           "instant": true,
           "legendFormat": "版本过期",
           "range": false,
-          "refId": "C"
+          "refId": "A"
+        }
+      ],
+      "title": "版本过期",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 是否报告当前版本已经弃用。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "green", "text": "正常" },
+                "1": { "color": "red", "text": "已弃用" }
+              },
+              "type": "value"
+            }
+          ],
+          "max": 1,
+          "min": 0,
+          "noValue": "未知",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 9 },
+      "id": 34,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
@@ -527,10 +662,10 @@
           "instant": true,
           "legendFormat": "版本弃用",
           "range": false,
-          "refId": "D"
+          "refId": "A"
         }
       ],
-      "title": "版本与许可证状态",
+      "title": "版本弃用",
       "type": "stat"
     },
     {
@@ -1400,6 +1535,6 @@
   "timezone": "browser",
   "title": "SafeLine Exporter Overview",
   "uid": "safeline-exporter-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
