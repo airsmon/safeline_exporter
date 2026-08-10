@@ -85,6 +85,7 @@ helm upgrade --install safeline-exporter ./charts/safeline-exporter \
 |---|---:|---|
 | `image.repository` | `safeline-exporter` | Exporter image repository |
 | `image.tag` | Chart `appVersion` | Exporter image tag when left empty |
+| `hostAliases` | `[]` | Optional pod-level hostname mappings for split-horizon DNS environments |
 | `safeline.address` | empty | Required SafeLine base URL |
 | `safeline.insecureSkipVerify` | `false` | Skip TLS certificate verification |
 | `safeline.allowHTTP` | `false` | Explicitly allow sending the token over plain HTTP |

@@ -8,6 +8,8 @@ image:
   tag: ""
 
 imagePullSecrets: []
+# Optional per-pod hostname mappings for split-horizon DNS environments.
+hostAliases: []
 nameOverride: ""
 fullnameOverride: ""
 
