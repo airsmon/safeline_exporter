@@ -1420,10 +1420,10 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 53 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 53 },
       "id": 24,
       "options": {
-        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
@@ -1453,7 +1453,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 10, "x": 10, "y": 53 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 53 },
       "id": 25,
       "description": "按来源展示独立校验通过的 HTTP 状态码明细；该质量门与上方 4xx/5xx 聚合质量门相互独立。",
       "options": {
@@ -1485,20 +1485,28 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "description": "聚合质量控制上方卡片与滚动趋势；状态码质量单独控制状态码明细。无效表示 exporter 已抑制对应样本，不能按 0 解读。",
+      "description": "四条泳道展示所选时间范围内的数据可信状态：绿色表示校验通过，红色表示已收到数据但校验失败，空白表示没有质量样本。聚合质量控制上方卡片与滚动趋势；状态码质量单独控制状态码明细。采集链路是否可用请看顶部 SafeLine API 与 Exporter 抓取状态。",
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "fillOpacity": 80,
+            "insertNulls": false,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
           "mappings": [
             {
               "options": {
-                "0": { "color": "red", "text": "无效" },
-                "1": { "color": "green", "text": "有效" }
+                "0": { "color": "red", "index": 0, "text": "异常" },
+                "1": { "color": "green", "index": 1, "text": "正常" }
               },
               "type": "value"
             }
           ],
           "max": 1,
           "min": 0,
+          "noValue": "无数据",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1509,39 +1517,56 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 53 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 53 },
       "id": 26,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto",
-        "wideLayout": true
+        "alignValue": "center",
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "mergeValues": true,
+        "rowHeight": 0.8,
+        "showValue": "auto",
+        "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "min by (source) (safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\"})",
-          "instant": true,
-          "legendFormat": "聚合 / {{source}}",
-          "range": false,
+          "expr": "min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"upstream\"})",
+          "instant": false,
+          "legendFormat": "聚合 · 上游",
+          "range": true,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "min by (source) (safeline_http_status_code_data_valid{job=~\"$job\",instance=~\"$instance\"})",
-          "instant": true,
-          "legendFormat": "状态码 / {{source}}",
-          "range": false,
+          "expr": "min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"waf\"})",
+          "instant": false,
+          "legendFormat": "聚合 · WAF",
+          "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "min(safeline_http_status_code_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"upstream\"})",
+          "instant": false,
+          "legendFormat": "状态码 · 上游",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "min(safeline_http_status_code_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"waf\"})",
+          "instant": false,
+          "legendFormat": "状态码 · WAF",
+          "range": true,
+          "refId": "D"
         }
       ],
-      "title": "HTTP 数据质量",
-      "type": "stat"
+      "title": "HTTP 数据质量（所选时段）",
+      "type": "state-timeline"
     },
     {
       "collapsed": false,
@@ -1730,6 +1755,6 @@
   "timezone": "browser",
   "title": "SafeLine Exporter Overview",
   "uid": "safeline-exporter-overview",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }

@@ -24,6 +24,6 @@ Metrics with a `_window` suffix are SafeLine's rolling 24-hour gauges, not Prome
 
 The QPS panel displays values converted from SafeLine's 5-second request-count samples. Prometheus timestamps those values when it scrapes the exporter, so the chart can lag the SafeLine page by up to one Prometheus scrape interval.
 
-The HTTP section starts with three compact cards: upstream 4xx errors, WAF 4xx interceptions, and the combined upstream/WAF 5xx total. Each card shows both the rolling count and its percentage of all requests. The cards intentionally show **无数据** instead of zero when their aggregate input is suppressed. Use **HTTP 数据质量** to inspect aggregate and status-code validity independently; a zero validity value means the corresponding response family was suppressed and must not be interpreted as zero errors.
+The HTTP section starts with three compact cards: upstream 4xx errors, WAF 4xx interceptions, and the combined upstream/WAF 5xx total. Each card shows both the rolling count and its percentage of all requests. The cards intentionally show **无数据** instead of zero when their aggregate input is suppressed. **HTTP 数据质量（所选时段）** uses four state lanes to separate upstream/WAF aggregate validity from status-code validity. Green means normal, red means invalid, and a gap means no sample; an invalid or missing feed must not be interpreted as zero errors.
 
 Certificate aggregate panels use zero when SafeLine has no managed certificates. Per-certificate expiry details are naturally empty because no certificate series exist.
