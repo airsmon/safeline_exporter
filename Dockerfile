@@ -5,7 +5,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
-ARG VERSION=0.2.0
+ARG VERSION=0.3.0
 ARG REVISION=unknown
 ARG BUILD_DATE=unknown
 
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 
 FROM scratch
 
-ARG VERSION=0.2.0
+ARG VERSION=0.3.0
 ARG REVISION=unknown
 ARG BUILD_DATE=unknown
 LABEL org.opencontainers.image.title="safeline_exporter" \

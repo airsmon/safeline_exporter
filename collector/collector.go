@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/url"
 	"sort"
 	"strconv"
@@ -16,7 +17,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const safeLineStatisticsPreset = "last1Day"
+const (
+	safeLineStatisticsPreset = "last1Day"
+	safeLineQPSSampleCount   = 35
+	safeLineQPSSampleSeconds = 5
+)
 
 type scrapeTimeKey struct{}
 
@@ -368,7 +373,7 @@ func (e *Exporter) collectStatistics(ctx context.Context) (any, error) {
 		{"/api/stat/advance/trend/intercept", query, &intercepts},
 		{"/api/stat/advance/access", query, &access},
 		{"/api/stat/advance/attack", query, &attacks},
-		{"/api/stat/qps", nil, &qps},
+		{"/api/stat/qps", url.Values{"count": {strconv.Itoa(safeLineQPSSampleCount)}}, &qps},
 	}
 	for _, request := range requestsList {
 		if err := e.client.Get(ctx, request.path, request.query, request.target); err != nil {
@@ -384,35 +389,65 @@ func (e *Exporter) collectStatistics(ctx context.Context) (any, error) {
 		AttackIPs: attacks.Data.AttackIP, InterceptByType: attacks.Data.Intercept,
 		QPSByListener: make(map[string]float64),
 	}
-	for index, sample := range qps.Data.Nodes {
-		var sampleTotal float64
-		for key, value := range sample {
-			if key != "time" {
-				if number, ok := value.(float64); ok {
-					sampleTotal += number
-					if index == len(qps.Data.Nodes)-1 {
-						result.QPSByListener[key] = number
-					}
-				}
-			}
-		}
-		result.QPSAverage += sampleTotal
-		if sampleTotal > result.QPSMax {
-			result.QPSMax = sampleTotal
-		}
-		if index == len(qps.Data.Nodes)-1 {
-			result.QPS = sampleTotal
-		}
-	}
-	if len(qps.Data.Nodes) > 0 {
-		result.QPSAverage /= float64(len(qps.Data.Nodes))
+	if err := populateQPSMetrics(&result, qps.Data.Nodes); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
+func populateQPSMetrics(result *statisticsMetrics, nodes []map[string]any) error {
+	if len(nodes) == 0 {
+		return errors.New("SafeLine QPS response contains no samples")
+	}
+	if result.QPSByListener == nil {
+		result.QPSByListener = make(map[string]float64)
+	}
+	for index, sample := range nodes {
+		var rawSampleTotal float64
+		listenerCount := 0
+		for key, value := range sample {
+			if key == "time" {
+				continue
+			}
+			number, ok := value.(float64)
+			if !ok {
+				return fmt.Errorf("SafeLine QPS response contains a non-numeric listener count for %q", key)
+			}
+			listenerCount++
+			rawSampleTotal += number
+			if !validNonNegativeMetric(number) || !validNonNegativeMetric(rawSampleTotal) {
+				return errors.New("SafeLine QPS response contains an invalid count")
+			}
+			if index == len(nodes)-1 {
+				result.QPSByListener[key] = normalizeQPSCount(number)
+			}
+		}
+		if listenerCount == 0 {
+			return errors.New("SafeLine QPS sample contains no listener counts")
+		}
+		sampleTotal := normalizeQPSCount(rawSampleTotal)
+		result.QPSAverage += sampleTotal
+		if !validNonNegativeMetric(result.QPSAverage) {
+			return errors.New("SafeLine QPS response overflows the sample aggregate")
+		}
+		if sampleTotal > result.QPSMax {
+			result.QPSMax = sampleTotal
+		}
+		if index == len(nodes)-1 {
+			result.QPS = sampleTotal
+		}
+	}
+	result.QPSAverage /= float64(len(nodes))
+	return nil
+}
+
+func normalizeQPSCount(rawCount float64) float64 {
+	return math.Ceil(rawCount / safeLineQPSSampleSeconds)
+}
+
 type httpErrors struct {
-	Errors4xx float64 `json:"error_4xx"`
-	Errors5xx float64 `json:"error_5xx"`
+	Errors4xx *float64 `json:"error_4xx"`
+	Errors5xx *float64 `json:"error_5xx"`
 }
 
 type httpStatusCode struct {
@@ -421,9 +456,10 @@ type httpStatusCode struct {
 }
 
 type httpStatusSource struct {
-	Errors httpErrors
-	Codes  []httpStatusCode
-	Valid  bool
+	Errors      httpErrors
+	Codes       []httpStatusCode
+	ErrorsValid bool
+	CodesValid  bool
 }
 
 type httpStatusMetrics struct {
@@ -437,28 +473,16 @@ func (e *Exporter) collectHTTPStatus(ctx context.Context) (any, error) {
 		"end_time":    {strconv.FormatInt(end, 10)},
 		"time_preset": {safeLineStatisticsPreset},
 	}
-	var access apiResponse[struct {
-		Access float64 `json:"access"`
-	}]
-	if err := e.client.Get(ctx, "/api/stat/advance/access", baseQuery, &access); err != nil {
-		return nil, err
-	}
-	if err := checkAPIError(access); err != nil {
-		return nil, err
-	}
-
 	result := httpStatusMetrics{Sources: make(map[string]httpStatusSource, 2)}
 	for _, source := range []struct {
-		name              string
-		errorUpstreamFlag string
-		codeUpstreamFlag  string
+		name         string
+		upstreamFlag string
 	}{
-		// SafeLine 9.3.11 uses opposite upstream flags for these endpoints.
-		{name: "upstream", errorUpstreamFlag: "false", codeUpstreamFlag: "true"},
-		{name: "waf", errorUpstreamFlag: "true", codeUpstreamFlag: "false"},
+		{name: "upstream", upstreamFlag: "true"},
+		{name: "waf", upstreamFlag: "false"},
 	} {
-		errorQuery := cloneWith(baseQuery, "upstream", source.errorUpstreamFlag)
-		codeQuery := cloneWith(baseQuery, "upstream", source.codeUpstreamFlag)
+		errorQuery := cloneWith(baseQuery, "upstream", source.upstreamFlag)
+		codeQuery := cloneWith(baseQuery, "upstream", source.upstreamFlag)
 		codeQuery.Set("size", "100")
 		var errorsResponse apiResponse[httpErrors]
 		var codesResponse apiResponse[[]httpStatusCode]
@@ -472,28 +496,30 @@ func (e *Exporter) collectHTTPStatus(ctx context.Context) (any, error) {
 			return nil, err
 		}
 		entry := httpStatusSource{Errors: errorsResponse.Data, Codes: codesResponse.Data}
-		entry.Valid = validHTTPStatusData(access.Data.Access, entry)
+		entry.ErrorsValid = validHTTPErrors(entry.Errors)
+		entry.CodesValid = validHTTPStatusCodes(entry.Codes)
 		result.Sources[source.name] = entry
 	}
 	return result, nil
 }
 
-func validHTTPStatusData(requests float64, data httpStatusSource) bool {
-	if requests < 0 || data.Errors.Errors4xx < 0 || data.Errors.Errors5xx < 0 {
-		return false
-	}
-	errorsTotal := data.Errors.Errors4xx + data.Errors.Errors5xx
-	if errorsTotal > requests {
-		return false
-	}
-	var statusTotal float64
-	for _, item := range data.Codes {
-		if item.Count < 0 {
+func validHTTPErrors(data httpErrors) bool {
+	return data.Errors4xx != nil && data.Errors5xx != nil &&
+		validNonNegativeMetric(*data.Errors4xx) && validNonNegativeMetric(*data.Errors5xx)
+}
+
+func validHTTPStatusCodes(codes []httpStatusCode) bool {
+	for _, item := range codes {
+		code, err := strconv.Atoi(item.Code)
+		if err != nil || code < 100 || code > 599 || !validNonNegativeMetric(item.Count) {
 			return false
 		}
-		statusTotal += item.Count
 	}
-	return errorsTotal == 0 || statusTotal > 0
+	return true
+}
+
+func validNonNegativeMetric(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func cloneWith(values url.Values, key, value string) url.Values {
@@ -845,14 +871,16 @@ func writeStatistics(m *metricWriter, data statisticsMetrics, window time.Durati
 
 func writeHTTPStatus(m *metricWriter, data httpStatusMetrics, window time.Duration) {
 	for source, item := range data.Sources {
-		m.metric("safeline_http_status_data_valid", "Whether SafeLine HTTP status data passed consistency checks.", "gauge", map[string]string{"source": source}, boolFloat(item.Valid))
-		if !item.Valid {
-			continue
+		m.metric("safeline_http_status_data_valid", "Whether SafeLine aggregate HTTP error data passed validation.", "gauge", map[string]string{"source": source}, boolFloat(item.ErrorsValid))
+		m.metric("safeline_http_status_code_data_valid", "Whether SafeLine HTTP status-code data passed validation.", "gauge", map[string]string{"source": source}, boolFloat(item.CodesValid))
+		if item.ErrorsValid {
+			m.metric("safeline_http_responses_window", "HTTP error responses by source and status class in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "class": "4xx"}, *item.Errors.Errors4xx)
+			m.metric("safeline_http_responses_window", "HTTP error responses by source and status class in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "class": "5xx"}, *item.Errors.Errors5xx)
 		}
-		m.metric("safeline_http_responses_window", "HTTP error responses by source and status class in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "class": "4xx"}, item.Errors.Errors4xx)
-		m.metric("safeline_http_responses_window", "HTTP error responses by source and status class in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "class": "5xx"}, item.Errors.Errors5xx)
-		for _, code := range item.Codes {
-			m.metric("safeline_http_status_code_responses_window", "HTTP responses by source and status code in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "code": code.Code}, code.Count)
+		if item.CodesValid {
+			for _, code := range item.Codes {
+				m.metric("safeline_http_status_code_responses_window", "HTTP responses by source and status code in the configured rolling window.", "gauge", map[string]string{"source": source, "window": window.String(), "code": code.Code}, code.Count)
+			}
 		}
 	}
 }

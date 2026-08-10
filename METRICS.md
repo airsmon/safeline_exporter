@@ -1,6 +1,6 @@
 # Metrics
 
-The exporter defines 102 project-specific Prometheus metric families: 101 SafeLine/scrape families plus `safeline_exporter_build_info`. It also registers the standard Prometheus Go, process and HTTP-handler collectors. Metrics ending in `_window` are gauges over the supported 24-hour rolling period. SafeLine CE 9.3.11 returns a fixed `last1Day` statistics series even for other requested presets, so the exporter rejects non-24h `SAFELINE_EXPORTER_WINDOW` values to keep the label truthful. Prometheus builds the long-term time series by scraping these gauges; the exporter does not replay SafeLine's historical buckets as Prometheus samples.
+The exporter defines 103 project-specific Prometheus metric families: 102 SafeLine/scrape families plus `safeline_exporter_build_info`. It also registers the standard Prometheus Go, process and HTTP-handler collectors. Metrics ending in `_window` are gauges over the supported 24-hour rolling period. SafeLine CE 9.3.11 returns a fixed `last1Day` statistics series even for other requested presets, so the exporter rejects non-24h `SAFELINE_EXPORTER_WINDOW` values to keep the label truthful. Prometheus builds the long-term time series by scraping these gauges; the exporter does not replay SafeLine's historical buckets as Prometheus samples.
 
 ## API coverage
 
@@ -11,7 +11,7 @@ The exporter defines 102 project-specific Prometheus metric families: 101 SafeLi
 | `extended_system` | `/api/open/system/arch`, `/api/open/system/edition`, `/api/open/system/license/status`, `/api/open/system/protocol`, `/api/open/detector`, `/api/open/global/mode` | Architecture, edition, detailed license, detector and semantic modes |
 | `statistics` | `/api/stat/advance/access`, `/api/stat/advance/attack`, `/api/stat/advance/trend/access`, `/api/stat/advance/trend/intercept`, `/api/stat/qps` | Traffic totals, security actions, trends and QPS |
 | `extended_statistics` | `/api/open/security_posture/statistics`, `/api/stat/advance/client`, `/api/stat/advance/location` | Security posture, clients and geography |
-| `http_status` | `/api/stat/advance/access`, `/api/stat/advance/error_status_code`, `/api/stat/advance/status_code` | Validated WAF/upstream 4xx and 5xx statistics |
+| `http_status` | `/api/stat/advance/error_status_code`, `/api/stat/advance/status_code` | Independently validated WAF/upstream 4xx, 5xx and status-code statistics |
 | `events` | `/api/open/events` | Normal attack events |
 | `rule_events` | `/api/open/events/rule` | Blacklist/whitelist rule events |
 | `attack_logs` | `/api/open/records` | Normal detection logs |
@@ -64,17 +64,17 @@ Standard `go_*`, `process_*` and `promhttp_metric_handler_*` metrics are provide
 | `safeline_requests_latest_bucket` | Request count in the newest returned trend bucket |
 | `safeline_intercepts_latest_bucket` | Intercept count in the newest returned trend bucket |
 | `safeline_statistics_latest_bucket_timestamp_seconds{series}` | Timestamp of the newest `requests` or `intercepts` bucket |
-| `safeline_qps` | Latest total QPS sample |
-| `safeline_qps_recent_average` | Average total QPS over samples returned by SafeLine |
-| `safeline_qps_recent_max` | Maximum total QPS over samples returned by SafeLine |
-| `safeline_qps_by_listener{listener}` | Latest QPS split by the bounded listener set |
+| `safeline_qps` | Latest total QPS, converted as `ceil(raw 5-second request count / 5)` to match the SafeLine UI |
+| `safeline_qps_recent_average` | Average of the converted QPS values over up to 35 samples returned by SafeLine |
+| `safeline_qps_recent_max` | Maximum converted QPS value over up to 35 samples returned by SafeLine |
+| `safeline_qps_by_listener{listener}` | Latest per-listener QPS, converted independently from the listener's 5-second request count |
 | `safeline_client_requests_window{kind,name,window}` | Top client OS/browser request totals; `kind` is `os` or `browser` and the API result is capped at 20 |
 | `safeline_traffic_by_location_window{scope,traffic,country,province,window}` | Requests/intercepts by country or province; `scope` is `country` or `province` |
 | `safeline_unique_attack_ips_window{window}` | Authoritative aggregated unique attack-IP count |
 | `safeline_security_actions_window{type,window}` | Security actions by SafeLine type, such as block, rate limit, challenge, authentication defense, offline or blacklist |
 | `safeline_security_actions_total_window{window}` | Sum of all returned security-action categories |
 | `safeline_security_posture_events_window{category,action,window}` | Pre-aggregated attack, blacklist, whitelist, ACL, waiting-room, challenge and authentication activity |
-| `safeline_anti_tamper_events_window{window}` | Anti-tamper events returned by the security-posture API |
+| `safeline_anti_tamper_events_window{window}` | Sum of the sole numeric count in each anti-tamper record returned by the security-posture API |
 
 `/api/stat/advance/domain` and `/api/stat/advance/page` are intentionally excluded because domain and URL labels can grow without a safe bound. Dedicated raw ACL, authentication, challenge and waiting-room records are represented through the exact security-posture aggregates because those raw APIs do not provide a reliable rolling-time filter on the tested SafeLine version.
 
@@ -82,11 +82,12 @@ Standard `go_*`, `process_*` and `promhttp_metric_handler_*` metrics are provide
 
 | Metric | Meaning |
 |---|---|
-| `safeline_http_status_data_valid{source}` | Response source passed consistency checks; `source` is `upstream` or `waf` |
-| `safeline_http_responses_window{source,class,window}` | Validated 4xx/5xx total by source |
-| `safeline_http_status_code_responses_window{source,code,window}` | Validated individual status-code total by source |
+| `safeline_http_status_data_valid{source}` | Aggregate 4xx/5xx feed passed validation; `source` is `upstream` or `waf` |
+| `safeline_http_status_code_data_valid{source}` | Individual status-code feed independently passed validation |
+| `safeline_http_responses_window{source,class,window}` | Validated aggregate 4xx/5xx total by source |
+| `safeline_http_status_code_responses_window{source,code,window}` | Independently validated individual status-code total by source |
 
-SafeLine 9.3.11 uses different `upstream` flag semantics on its two status endpoints. The exporter queries both explicitly and suppresses the two response metric families for any source whose values are negative, exceed total requests, or have no status-code evidence despite a non-zero error total. Alert on `safeline_http_status_data_valid == 0`; do not interpret a suppressed source as zero errors.
+SafeLine 9.3.11 uses `upstream=true` for upstream-service responses and `upstream=false` for WAF-generated responses or interceptions on both status endpoints. The exporter queries both sources explicitly. Aggregate 4xx/5xx values and individual status-code rows are validated independently because SafeLine can return a correct non-zero aggregate while returning an empty status-code list. Aggregate validation accepts finite, non-negative values; status-code validation additionally requires codes in the HTTP 100–599 range. Each invalid feed suppresses only its corresponding response family. Alert on either validity metric being zero, and never interpret a suppressed family as zero errors.
 
 ## Normal attack events
 

@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -86,6 +87,11 @@ func (e *Exporter) collectExtendedStatistics(ctx context.Context) (any, error) {
 		return nil, err
 	}
 
+	antiTamper, err := sumAntiTamperEvents(posture.Data.AntiTamper)
+	if err != nil {
+		return nil, err
+	}
+
 	result := extendedStatisticsMetrics{
 		SecurityPosture: []extendedSecurityPostureCount{
 			{Category: "attack", Action: "allow", Count: posture.Data.AttackAllow},
@@ -101,7 +107,7 @@ func (e *Exporter) collectExtendedStatistics(ctx context.Context) (any, error) {
 			{Category: "auth", Action: "allow", Count: posture.Data.AuthAllow},
 			{Category: "auth", Action: "deny", Count: posture.Data.AuthDeny},
 		},
-		AntiTamper: float64(len(posture.Data.AntiTamper)),
+		AntiTamper: antiTamper,
 	}
 	for _, item := range clients.Data.OS {
 		result.Clients = append(result.Clients, extendedClientCount{Kind: "os", Name: labelOrUnknown(item.Name), Count: item.Count})
@@ -145,6 +151,26 @@ func (e *Exporter) collectExtendedStatistics(ctx context.Context) (any, error) {
 	}
 
 	return result, nil
+}
+
+func sumAntiTamperEvents(groups []map[string]string) (float64, error) {
+	var total float64
+	for _, group := range groups {
+		if len(group) != 1 {
+			return 0, fmt.Errorf("invalid SafeLine anti-tamper record with %d fields", len(group))
+		}
+		for _, rawCount := range group {
+			count, err := strconv.ParseFloat(rawCount, 64)
+			if err != nil || !validNonNegativeMetric(count) {
+				return 0, fmt.Errorf("invalid SafeLine anti-tamper count %q", rawCount)
+			}
+			total += count
+			if !validNonNegativeMetric(total) {
+				return 0, fmt.Errorf("SafeLine anti-tamper count overflow")
+			}
+		}
+	}
+	return total, nil
 }
 
 func labelOrUnknown(value string) string {

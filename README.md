@@ -10,11 +10,11 @@ Prometheus exporter for the SafeLine WAF Open API. The exporter uses read-only S
 - SafeLine health, version, architecture, edition, deployment, detector, semantic-module, password and license state
 - Protected applications, upstream health, certificates and expiry
 - Rolling requests, visitors, client IPs, page views, intercepts, clients and geography
-- Current, recent-average, recent-maximum and per-listener QPS
-- Validated WAF/upstream 4xx, 5xx and individual status-code statistics
+- UI-compatible current, recent-average, recent-maximum and per-listener QPS converted from SafeLine's 5-second samples
+- Independently validated upstream/WAF 4xx, 5xx and individual status-code statistics
 - Normal and rule attack events with request counts, source-IP cardinality, duration, geography, protocol and pagination completeness
 - Normal and rule detection logs grouped independently by action, attack type, risk, module, country, protocol, status code and normalized HTTP method
-- Exact unique attack IPs, security actions, security-posture categories and anti-tamper events
+- Exact unique attack IPs, security actions, security-posture categories and summed anti-tamper events
 - Per-collector status/duration, scrape status/duration, build information and standard Go/process metrics
 
 Rolling metrics are gauges because SafeLine returns a moving 24-hour snapshot. Prometheus creates longer-term time series by scraping these gauges.
@@ -83,11 +83,11 @@ make build
 ## Docker
 
 ```bash
-docker build -t safeline-exporter:0.2.0 .
+docker build -t safeline-exporter:0.3.0 .
 docker run --rm -p 9719:9719 \
   -e SAFELINE_ADDRESS='https://safeline.example.com' \
   -e SAFELINE_API_TOKEN \
-  safeline-exporter:0.2.0
+  safeline-exporter:0.3.0
 ```
 
 The multi-stage image builds a static binary, includes only CA certificates and that binary in the runtime layer, and runs as numeric user `65532`.

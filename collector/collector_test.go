@@ -2,9 +2,11 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,8 +41,8 @@ func TestExporterMetrics(t *testing.T) {
 			"/api/open/events/rule":                 `{"data":{"nodes":[{"ip":"192.0.2.3","deny_count":3,"pass_count":0,"finished":true,"start_at":100000,"end_at":102000,"updated_at":102000}],"total":1},"err":null,"msg":""}`,
 			"/api/open/records":                     `{"data":{"data":[{"attack_type":0,"action":1,"risk_level":3,"module":"m_sqli","country":"CN","protocol":1,"status_code":403,"method":"POST","timestamp":1700000000000},{"attack_type":0,"action":1,"risk_level":3,"module":"m_sqli","country":"CN","protocol":1,"status_code":403,"method":"POST","timestamp":1700000001000}],"total":2},"err":null,"msg":""}`,
 			"/api/open/records/rule":                `{"data":{"data":[{"attack_type":0,"action":1,"risk_level":0,"module":"blacklist","country":"CN","protocol":1,"status_code":403,"method":"GET","timestamp":200}],"total":1},"err":null,"msg":""}`,
-			"/api/open/security_posture/statistics": `{"data":{"attack_deny":2,"attack_allow":1,"black_hit":3,"black_deny":3,"black_allow":0,"white_hit":1,"acl_hit":1,"waiting_hit":0,"challenge_deny":0,"challenge_allow":0,"auth_deny":0,"auth_allow":0,"anti_tamper":null},"err":null,"msg":""}`,
-			"/api/stat/qps":                         `{"data":{"nodes":[{"time":"12:00:00","0.0.0.0:0":7}]},"err":null,"msg":""}`,
+			"/api/open/security_posture/statistics": `{"data":{"attack_deny":2,"attack_allow":1,"black_hit":3,"black_deny":3,"black_allow":0,"white_hit":1,"acl_hit":1,"waiting_hit":0,"challenge_deny":0,"challenge_allow":0,"auth_deny":0,"auth_allow":0,"anti_tamper":[{"site-a":"5"},{"site-b":"3"}]},"err":null,"msg":""}`,
+			"/api/stat/qps":                         `{"data":{"nodes":[{"time":"11:59:50","listener-a":1},{"time":"11:59:55","listener-a":5},{"time":"12:00:00","listener-a":6,"listener-b":4}]},"err":null,"msg":""}`,
 			"/api/stat/advance/access":              `{"data":{"access":30,"session":4,"ip":5,"pv":6},"err":null,"msg":""}`,
 			"/api/stat/advance/attack":              `{"data":{"attack_ip":9,"intercept":{"block":6,"rate_limit":2,"challenge":1,"auth_defense":0,"offline":0,"blacklist":3}},"err":null,"msg":""}`,
 			"/api/stat/advance/location":            `{"data":[{"country":"CN","province":"上海市","count":11}],"err":null,"msg":""}`,
@@ -51,6 +53,33 @@ func TestExporterMetrics(t *testing.T) {
 			"/api/stat/advance/status_code":         `{"data":[{"status_code":"404","count":8},{"status_code":"502","count":9}],"err":null,"msg":""}`,
 		}
 		body, ok := responses[r.URL.Path]
+		switch r.URL.Path {
+		case "/api/stat/qps":
+			if got := r.URL.Query().Get("count"); got != "35" {
+				t.Errorf("qps count = %q, want 35", got)
+			}
+		case "/api/stat/advance/error_status_code":
+			switch r.URL.Query().Get("upstream") {
+			case "true":
+				body = `{"data":{"error_4xx":8,"error_5xx":9},"err":null,"msg":""}`
+			case "false":
+				body = `{"data":{"error_4xx":3,"error_5xx":4},"err":null,"msg":""}`
+			default:
+				t.Errorf("missing error_status_code upstream query")
+			}
+		case "/api/stat/advance/status_code":
+			if got := r.URL.Query().Get("size"); got != "100" {
+				t.Errorf("status_code size = %q, want 100", got)
+			}
+			switch r.URL.Query().Get("upstream") {
+			case "true":
+				body = `{"data":[],"err":null,"msg":""}`
+			case "false":
+				body = `{"data":[{"status_code":"403","count":3},{"status_code":"500","count":4}],"err":null,"msg":""}`
+			default:
+				t.Errorf("missing status_code upstream query")
+			}
+		}
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -79,7 +108,10 @@ func TestExporterMetrics(t *testing.T) {
 		`safeline_site_upstream_health_state{id="1",site="example.com",upstream="http://backend:8080"} 1`,
 		`safeline_requests_window{window="24h0m0s"} 30`,
 		`safeline_intercepts_window{window="24h0m0s"} 5`,
-		`safeline_qps 7`,
+		`safeline_qps 2`,
+		`safeline_qps_by_listener{listener="listener-a"} 2`,
+		`safeline_qps_by_listener{listener="listener-b"} 1`,
+		`safeline_qps_recent_average 1.3333333333333333`,
 		`safeline_unique_attack_ips_window{window="24h0m0s"} 9`,
 		`safeline_attack_events_fetched 2`,
 		`safeline_attack_event_source_ips_window{window="24h0m0s"} 2`,
@@ -87,20 +119,26 @@ func TestExporterMetrics(t *testing.T) {
 		`safeline_attack_requests_window{action="deny",window="24h0m0s"} 6`,
 		`safeline_security_actions_window{type="blacklist",window="24h0m0s"} 3`,
 		`safeline_unique_visitors_window{window="24h0m0s"} 4`,
-		`safeline_qps_recent_max 7`,
+		`safeline_qps_recent_max 2`,
 		`safeline_attack_log_records_by_module_window{module="m_sqli",window="24h0m0s"} 2`,
 		`safeline_attack_log_records_by_action_window{action="deny",window="24h0m0s"} 2`,
 		`safeline_rule_attack_logs_window{window="24h0m0s"} 1`,
 		`safeline_security_posture_events_window{action="deny",category="attack",window="24h0m0s"} 2`,
+		`safeline_anti_tamper_events_window{window="24h0m0s"} 8`,
 		`safeline_client_requests_window{kind="os",name="Linux",window="24h0m0s"} 10`,
 		`safeline_http_status_data_valid{source="upstream"} 1`,
+		`safeline_http_status_code_data_valid{source="upstream"} 1`,
 		`safeline_http_responses_window{class="5xx",source="upstream",window="24h0m0s"} 9`,
-		`safeline_certificate_expiry_timestamp_seconds{domains="example.com",id="2"}`,
+		`safeline_http_responses_window{class="4xx",source="waf",window="24h0m0s"} 3`,
+		`safeline_http_status_code_responses_window{code="403",source="waf",window="24h0m0s"} 3`,
 		`safeline_exporter_scrape_success 1`,
 	} {
-		if !strings.Contains(body, expected) {
+		if !strings.Contains("\n"+body, "\n"+expected+"\n") {
 			t.Errorf("missing %q in metrics:\n%s", expected, body)
 		}
+	}
+	if expectedPrefix := `safeline_certificate_expiry_timestamp_seconds{domains="example.com",id="2"} `; !strings.Contains("\n"+body, "\n"+expectedPrefix) {
+		t.Errorf("missing metric prefix %q in metrics:\n%s", expectedPrefix, body)
 	}
 
 	cappedExporter := New(client, 24*time.Hour, 1, 5*time.Second, nil)
@@ -127,6 +165,198 @@ func TestParseSafeLineTime(t *testing.T) {
 		if _, err := parseSafeLineTime(value); err != nil {
 			t.Errorf("parseSafeLineTime(%q): %v", value, err)
 		}
+	}
+}
+
+func TestNormalizeQPSCount(t *testing.T) {
+	for _, test := range []struct {
+		raw  float64
+		want float64
+	}{
+		{raw: 0, want: 0},
+		{raw: 1, want: 1},
+		{raw: 5, want: 1},
+		{raw: 6, want: 2},
+		{raw: 77, want: 16},
+	} {
+		if got := normalizeQPSCount(test.raw); got != test.want {
+			t.Errorf("normalizeQPSCount(%v) = %v, want %v", test.raw, got, test.want)
+		}
+	}
+}
+
+func TestPopulateQPSMetrics(t *testing.T) {
+	result := statisticsMetrics{}
+	err := populateQPSMetrics(&result, []map[string]any{
+		{"time": "11:59:50", "listener-a": 1.0},
+		{"time": "11:59:55", "listener-a": 5.0},
+		{"time": "12:00:00", "listener-a": 6.0, "listener-b": 4.0},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.QPS != 2 || result.QPSMax != 2 || math.Abs(result.QPSAverage-4.0/3.0) > 1e-12 {
+		t.Fatalf("unexpected normalized QPS metrics: %+v", result)
+	}
+	if result.QPSByListener["listener-a"] != 2 || result.QPSByListener["listener-b"] != 1 {
+		t.Fatalf("unexpected listener QPS metrics: %v", result.QPSByListener)
+	}
+
+	for name, nodes := range map[string][]map[string]any{
+		"empty response": nil,
+		"empty sample":   {{"time": "12:00:00"}},
+		"string count":   {{"time": "12:00:00", "listener": "5"}},
+		"negative count": {{"time": "12:00:00", "listener": -1.0}},
+		"nan count":      {{"time": "12:00:00", "listener": math.NaN()}},
+		"infinite count": {{"time": "12:00:00", "listener": math.Inf(1)}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := populateQPSMetrics(&statisticsMetrics{}, nodes); err == nil {
+				t.Fatal("malformed QPS data was accepted")
+			}
+		})
+	}
+}
+
+func TestHTTPStatusValidation(t *testing.T) {
+	if !validHTTPErrors(httpErrors{Errors4xx: float64Pointer(8), Errors5xx: float64Pointer(9)}) {
+		t.Fatal("valid aggregate errors were rejected")
+	}
+	if validHTTPErrors(httpErrors{}) || validHTTPErrors(httpErrors{Errors4xx: float64Pointer(1)}) {
+		t.Fatal("missing aggregate error fields were accepted")
+	}
+	for _, payload := range []string{
+		`{"data":{},"err":null,"msg":""}`,
+		`{"data":{"error_4xx":1},"err":null,"msg":""}`,
+		`{"data":{"error_5xx":1},"err":null,"msg":""}`,
+	} {
+		var response apiResponse[httpErrors]
+		if err := json.Unmarshal([]byte(payload), &response); err != nil {
+			t.Fatal(err)
+		}
+		if validHTTPErrors(response.Data) {
+			t.Errorf("missing HTTP error fields were accepted for %s", payload)
+		}
+	}
+	if !validHTTPStatusCodes(nil) {
+		t.Fatal("empty status-code data should be valid independently of aggregate errors")
+	}
+	if !validHTTPStatusCodes([]httpStatusCode{{Code: "403", Count: 3}}) {
+		t.Fatal("valid status-code data was rejected")
+	}
+	for _, errors := range []httpErrors{
+		{Errors4xx: float64Pointer(-1), Errors5xx: float64Pointer(0)},
+		{Errors4xx: float64Pointer(math.NaN()), Errors5xx: float64Pointer(0)},
+		{Errors4xx: float64Pointer(0), Errors5xx: float64Pointer(math.Inf(1))},
+	} {
+		if validHTTPErrors(errors) {
+			t.Errorf("invalid aggregate errors were accepted: %+v", errors)
+		}
+	}
+	for _, codes := range [][]httpStatusCode{
+		{{Code: "99", Count: 1}},
+		{{Code: "600", Count: 1}},
+		{{Code: "invalid", Count: 1}},
+		{{Code: "403", Count: -1}},
+		{{Code: "403", Count: math.Inf(1)}},
+	} {
+		if validHTTPStatusCodes(codes) {
+			t.Errorf("invalid status-code data was accepted: %+v", codes)
+		}
+	}
+}
+
+func float64Pointer(value float64) *float64 {
+	return &value
+}
+
+type collectorFunc func(chan<- prometheus.Metric)
+
+func (collectorFunc) Describe(chan<- *prometheus.Desc) {}
+
+func (collect collectorFunc) Collect(ch chan<- prometheus.Metric) {
+	collect(ch)
+}
+
+func TestWriteHTTPStatusKeepsFeedsIndependent(t *testing.T) {
+	data := httpStatusMetrics{Sources: map[string]httpStatusSource{
+		"upstream": {
+			Errors:      httpErrors{Errors4xx: float64Pointer(8), Errors5xx: float64Pointer(9)},
+			Codes:       []httpStatusCode{{Code: "invalid", Count: 1}},
+			ErrorsValid: true,
+			CodesValid:  false,
+		},
+		"waf": {
+			Errors:      httpErrors{Errors4xx: float64Pointer(3)},
+			Codes:       []httpStatusCode{{Code: "403", Count: 3}},
+			ErrorsValid: false,
+			CodesValid:  true,
+		},
+	}}
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collectorFunc(func(ch chan<- prometheus.Metric) {
+		writeHTTPStatus(&metricWriter{ch: ch}, data, 24*time.Hour)
+	}))
+	families, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := make(map[string]map[string]float64, len(families))
+	for _, family := range families {
+		values := make(map[string]float64, len(family.Metric))
+		for _, metric := range family.Metric {
+			labels := make(map[string]string, len(metric.Label))
+			for _, label := range metric.Label {
+				labels[label.GetName()] = label.GetValue()
+			}
+			key := labels["source"] + "/" + labels["class"] + "/" + labels["code"]
+			values[key] = metric.GetGauge().GetValue()
+		}
+		byName[family.GetName()] = values
+	}
+
+	aggregates := byName["safeline_http_responses_window"]
+	if len(aggregates) != 2 || aggregates["upstream/4xx/"] != 8 || aggregates["upstream/5xx/"] != 9 {
+		t.Fatalf("aggregate HTTP feed was not isolated: %v", aggregates)
+	}
+	codes := byName["safeline_http_status_code_responses_window"]
+	if len(codes) != 1 || codes["waf//403"] != 3 {
+		t.Fatalf("status-code HTTP feed was not isolated: %v", codes)
+	}
+	if got := byName["safeline_http_status_data_valid"]; got["upstream//"] != 1 || got["waf//"] != 0 {
+		t.Fatalf("unexpected aggregate validity metrics: %v", got)
+	}
+	if got := byName["safeline_http_status_code_data_valid"]; got["upstream//"] != 0 || got["waf//"] != 1 {
+		t.Fatalf("unexpected status-code validity metrics: %v", got)
+	}
+}
+
+func TestSumAntiTamperEvents(t *testing.T) {
+	got, err := sumAntiTamperEvents([]map[string]string{{"site-a": "2"}, {"site-b": "3"}, {"site-c": "4"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 9 {
+		t.Fatalf("sumAntiTamperEvents() = %v, want 9", got)
+	}
+	if got, err := sumAntiTamperEvents(nil); err != nil || got != 0 {
+		t.Fatalf("sumAntiTamperEvents(nil) = %v, %v; want 0, nil", got, err)
+	}
+	for _, raw := range []string{"invalid", "-1", "NaN", "+Inf"} {
+		if _, err := sumAntiTamperEvents([]map[string]string{{"site": raw}}); err == nil {
+			t.Errorf("sumAntiTamperEvents accepted %q", raw)
+		}
+	}
+	for name, groups := range map[string][]map[string]string{
+		"empty record":     {{}},
+		"multi-key record": {{"site-a": "1", "site-b": "2"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := sumAntiTamperEvents(groups); err == nil {
+				t.Fatal("malformed anti-tamper record was accepted")
+			}
+		})
 	}
 }
 

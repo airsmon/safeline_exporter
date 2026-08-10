@@ -276,7 +276,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum(safeline_certificates{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(safeline_certificates{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
           "instant": true,
           "legendFormat": "证书",
           "range": false,
@@ -778,6 +778,7 @@
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "id": 14,
+      "description": "SafeLine 返回 5 秒请求计数，exporter 将其换算为每秒请求数。Prometheus 按抓取时刻记录，因此相对 SafeLine 页面可能存在最多一个抓取周期的显示滞后。",
       "options": {
         "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
@@ -808,7 +809,7 @@
           "refId": "C"
         }
       ],
-      "title": "QPS",
+      "title": "QPS（5 秒样本换算）",
       "type": "timeseries"
     },
     {
@@ -1204,7 +1205,190 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "description": "仅展示通过 exporter 一致性校验的数据源；无效源的错误统计会被抑制。",
+      "description": "SafeLine 近 24 小时上游服务返回的 4xx 错误及其占全部请求的比例。聚合数据校验失败时显示无数据，不将缺失误报为 0。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "noValue": "无数据",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "请求占比" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 49 },
+      "id": 35,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",source=\"upstream\",class=\"4xx\"}) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"upstream\"}) == 1)",
+          "instant": true,
+          "legendFormat": "错误数",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "(100 * sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",source=\"upstream\",class=\"4xx\"}) / clamp_min(sum(safeline_requests_window{job=~\"$job\",instance=~\"$instance\"}), 1)) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"upstream\"}) == 1)",
+          "instant": true,
+          "legendFormat": "请求占比",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "上游 4xx 错误",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 近 24 小时由 WAF 返回的 4xx 拦截及其占全部请求的比例。聚合数据校验失败时显示无数据，不将缺失误报为 0。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "noValue": "无数据",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "请求占比" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 49 },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",source=\"waf\",class=\"4xx\"}) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"waf\"}) == 1)",
+          "instant": true,
+          "legendFormat": "拦截数",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "(100 * sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",source=\"waf\",class=\"4xx\"}) / clamp_min(sum(safeline_requests_window{job=~\"$job\",instance=~\"$instance\"}), 1)) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\",source=\"waf\"}) == 1)",
+          "instant": true,
+          "legendFormat": "请求占比",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "WAF 4xx 拦截",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 近 24 小时上游与 WAF 两个来源的 5xx 错误总数及其占全部请求的比例。任一来源的聚合数据校验失败时显示无数据，避免把部分数据误报为总数。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "noValue": "无数据",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "请求占比" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 2 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 49 },
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",class=\"5xx\"}) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\"}) == 1)",
+          "instant": true,
+          "legendFormat": "错误数",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "(100 * sum(safeline_http_responses_window{job=~\"$job\",instance=~\"$instance\",class=\"5xx\"}) / clamp_min(sum(safeline_requests_window{job=~\"$job\",instance=~\"$instance\"}), 1)) and on() (min(safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\"}) == 1)",
+          "instant": true,
+          "legendFormat": "请求占比",
+          "range": false,
+          "refId": "B"
+        }
+      ],
+      "title": "5xx 错误（上游 + WAF）",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "按来源和状态类别展示 SafeLine 近 24 小时滚动值。upstream 表示上游服务响应，waf 表示 WAF 生成的响应或拦截；聚合校验失败的来源不会输出样本。",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1236,7 +1420,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 49 },
+      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 53 },
       "id": 24,
       "options": {
         "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
@@ -1269,8 +1453,9 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 10, "x": 10, "y": 49 },
+      "gridPos": { "h": 8, "w": 10, "x": 10, "y": 53 },
       "id": 25,
+      "description": "按来源展示独立校验通过的 HTTP 状态码明细；该质量门与上方 4xx/5xx 聚合质量门相互独立。",
       "options": {
         "displayMode": "gradient",
         "maxVizHeight": 300,
@@ -1300,6 +1485,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "聚合质量控制上方卡片与滚动趋势；状态码质量单独控制状态码明细。无效表示 exporter 已抑制对应样本，不能按 0 解读。",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -1323,7 +1509,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 49 },
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 53 },
       "id": 26,
       "options": {
         "colorMode": "background",
@@ -1340,17 +1526,26 @@
           "editorMode": "code",
           "expr": "min by (source) (safeline_http_status_data_valid{job=~\"$job\",instance=~\"$instance\"})",
           "instant": true,
-          "legendFormat": "{{source}}",
+          "legendFormat": "聚合 / {{source}}",
           "range": false,
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "min by (source) (safeline_http_status_code_data_valid{job=~\"$job\",instance=~\"$instance\"})",
+          "instant": true,
+          "legendFormat": "状态码 / {{source}}",
+          "range": false,
+          "refId": "B"
         }
       ],
-      "title": "状态数据有效性",
+      "title": "HTTP 数据质量",
       "type": "stat"
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 57 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
       "id": 27,
       "panels": [],
       "title": "SSL 证书",
@@ -1370,7 +1565,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 58 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 62 },
       "id": 28,
       "options": {
         "colorMode": "value",
@@ -1385,7 +1580,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum(safeline_certificates{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(safeline_certificates{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
           "instant": true,
           "legendFormat": "证书总数",
           "range": false,
@@ -1394,7 +1589,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum(safeline_certificate_expired{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(safeline_certificate_expired{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
           "instant": true,
           "legendFormat": "已过期",
           "range": false,
@@ -1403,7 +1598,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum(safeline_certificate_revoked{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(safeline_certificate_revoked{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
           "instant": true,
           "legendFormat": "已吊销",
           "range": false,
@@ -1412,7 +1607,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum(safeline_certificate_trusted{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(safeline_certificate_trusted{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
           "instant": true,
           "legendFormat": "受信任",
           "range": false,
@@ -1440,7 +1635,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 58 },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 62 },
       "id": 29,
       "options": {
         "displayMode": "gradient",
@@ -1535,6 +1730,6 @@
   "timezone": "browser",
   "title": "SafeLine Exporter Overview",
   "uid": "safeline-exporter-overview",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
