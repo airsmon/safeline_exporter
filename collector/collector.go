@@ -733,6 +733,106 @@ func attackActionName(action int) string {
 	}
 }
 
+var safeLineAttackTypeNames = map[int]string{
+	-4: "超长数据",
+	-3: "黑名单",
+	-2: "白名单",
+	-1: "非攻击",
+	0:  "SQL 注入",
+	1:  "XSS",
+	2:  "CSRF",
+	3:  "SSRF",
+	4:  "拒绝服务",
+	5:  "后门",
+	6:  "反序列化",
+	7:  "代码执行",
+	8:  "代码注入",
+	9:  "命令注入",
+	10: "文件上传",
+	11: "文件包含",
+	12: "重定向",
+	13: "权限不当",
+	14: "信息泄露",
+	15: "未授权访问",
+	16: "不安全的配置",
+	17: "XXE",
+	18: "XPath 注入",
+	19: "LDAP 注入",
+	20: "目录穿越",
+	21: "扫描器",
+	22: "水平权限绕过",
+	23: "垂直权限绕过",
+	24: "文件修改",
+	25: "文件读取",
+	26: "文件删除",
+	27: "逻辑错误",
+	28: "CRLF 注入",
+	29: "模板注入",
+	30: "点击劫持",
+	31: "缓冲区溢出",
+	32: "整数溢出",
+	33: "格式化字符串",
+	34: "条件竞争",
+	35: "HTTP 协议违规",
+	36: "HTTP 请求走私",
+	61: "超时",
+	62: "未知",
+	63: "威胁情报",
+	64: "Cookie 篡改",
+}
+
+func attackTypeDisplayName(value string) string {
+	attackType, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Sprintf("未知 (%s)", value)
+	}
+	if name, ok := safeLineAttackTypeNames[attackType]; ok {
+		return name
+	}
+	return fmt.Sprintf("未知 (%d)", attackType)
+}
+
+func riskLevelDisplayName(value string) string {
+	switch value {
+	case "0":
+		return "未分级"
+	case "1":
+		return "低危"
+	case "2":
+		return "中危"
+	case "3":
+		return "高危"
+	default:
+		return fmt.Sprintf("未知 (%s)", value)
+	}
+}
+
+func attackActionDisplayName(value string) string {
+	switch value {
+	case "pass":
+		return "放行"
+	case "deny":
+		return "拦截"
+	case "unknown":
+		return "未知"
+	default:
+		return fmt.Sprintf("未知 (%s)", value)
+	}
+}
+
+func attackLogDimensionLabels(window, labelName, value string) map[string]string {
+	labels := map[string]string{"window": window, labelName: value}
+	switch labelName {
+	case "attack_type":
+		labels["attack_type_name"] = attackTypeDisplayName(value)
+	case "risk_level":
+		labels["risk_level_name"] = riskLevelDisplayName(value)
+	case "action":
+		labels["action_name"] = attackActionDisplayName(value)
+	}
+	return labels
+}
+
 func nonEmpty(value, fallback string) string {
 	if value == "" {
 		return fallback
@@ -918,13 +1018,13 @@ func writeAttackLogs(m *metricWriter, data attackLogMetrics, window time.Duratio
 	m.metric("safeline_attack_logs_fetched", "Attack log records fetched for aggregation in the last scrape.", "gauge", nil, float64(data.Fetched))
 	m.metric("safeline_attack_logs_truncated", "Whether attack log pagination hit the configured limit.", "gauge", nil, boolFloat(data.Truncated))
 	for action, count := range data.ByAction {
-		m.metric("safeline_attack_log_records_by_action_window", "Attack log records by action in the configured rolling window.", "gauge", map[string]string{"window": window.String(), "action": action}, count)
+		m.metric("safeline_attack_log_records_by_action_window", "Attack log records by action in the configured rolling window.", "gauge", attackLogDimensionLabels(window.String(), "action", action), count)
 	}
 	for attackType, count := range data.ByType {
-		m.metric("safeline_attack_log_records_by_type_window", "Attack log records by SafeLine attack type in the configured rolling window.", "gauge", map[string]string{"window": window.String(), "attack_type": attackType}, count)
+		m.metric("safeline_attack_log_records_by_type_window", "Attack log records by SafeLine attack type in the configured rolling window.", "gauge", attackLogDimensionLabels(window.String(), "attack_type", attackType), count)
 	}
 	for risk, count := range data.ByRisk {
-		m.metric("safeline_attack_log_records_by_risk_window", "Attack log records by risk level in the configured rolling window.", "gauge", map[string]string{"window": window.String(), "risk_level": risk}, count)
+		m.metric("safeline_attack_log_records_by_risk_window", "Attack log records by risk level in the configured rolling window.", "gauge", attackLogDimensionLabels(window.String(), "risk_level", risk), count)
 	}
 	for module, count := range data.ByModule {
 		m.metric("safeline_attack_log_records_by_module_window", "Attack log records by detection module in the configured rolling window.", "gauge", map[string]string{"window": window.String(), "module": module}, count)

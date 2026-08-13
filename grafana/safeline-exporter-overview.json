@@ -1055,6 +1055,7 @@
       },
       "gridPos": { "h": 9, "w": 8, "x": 0, "y": 39 },
       "id": 20,
+      "description": "“WAF 检测”来自常规防护检测日志；“黑白名单规则”来自规则命中日志。攻击类型名称按 SafeLine 当前前端枚举展示，未知的新枚举会保留原始编号。",
       "options": {
         "displayMode": "gradient",
         "maxVizHeight": 300,
@@ -1072,18 +1073,18 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (attack_type) (safeline_attack_log_records_by_type_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (attack_type_name) (safeline_attack_log_records_by_type_window{job=~\"$job\",instance=~\"$instance\",attack_type_name!=\"\"})",
           "instant": true,
-          "legendFormat": "普通 / {{attack_type}}",
+          "legendFormat": "WAF 检测 / {{attack_type_name}}",
           "range": false,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (attack_type) (safeline_rule_attack_log_records_by_type_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (attack_type_name) (safeline_rule_attack_log_records_by_type_window{job=~\"$job\",instance=~\"$instance\",attack_type_name!=\"\"})",
           "instant": true,
-          "legendFormat": "规则 / {{attack_type}}",
+          "legendFormat": "黑白名单规则 / {{attack_type_name}}",
           "range": false,
           "refId": "B"
         }
@@ -1093,6 +1094,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "风险等级：未分级（SafeLine 原始值 0）、低危（1）、中危（2）、高危（3）。“WAF 检测”和“黑白名单规则”表示日志来源。",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1124,18 +1126,18 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (risk_level) (safeline_attack_log_records_by_risk_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (risk_level_name) (safeline_attack_log_records_by_risk_window{job=~\"$job\",instance=~\"$instance\",risk_level_name!=\"\"})",
           "instant": true,
-          "legendFormat": "普通 / {{risk_level}}",
+          "legendFormat": "WAF 检测 / {{risk_level_name}}",
           "range": false,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (risk_level) (safeline_rule_attack_log_records_by_risk_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (risk_level_name) (safeline_rule_attack_log_records_by_risk_window{job=~\"$job\",instance=~\"$instance\",risk_level_name!=\"\"})",
           "instant": true,
-          "legendFormat": "规则 / {{risk_level}}",
+          "legendFormat": "黑白名单规则 / {{risk_level_name}}",
           "range": false,
           "refId": "B"
         }
@@ -1145,6 +1147,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "动作表示 SafeLine 对请求的最终处理：放行（原始 action=pass/0）、拦截（原始 action=deny/1）。“WAF 检测”和“黑白名单规则”表示日志来源。",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -1176,18 +1179,18 @@
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (action) (safeline_attack_log_records_by_action_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (action_name) (safeline_attack_log_records_by_action_window{job=~\"$job\",instance=~\"$instance\",action_name!=\"\"})",
           "instant": true,
-          "legendFormat": "普通 / {{action}}",
+          "legendFormat": "WAF 检测 / {{action_name}}",
           "range": false,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
-          "expr": "sum by (action) (safeline_rule_attack_log_records_by_action_window{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum by (action_name) (safeline_rule_attack_log_records_by_action_window{job=~\"$job\",instance=~\"$instance\",action_name!=\"\"})",
           "instant": true,
-          "legendFormat": "规则 / {{action}}",
+          "legendFormat": "黑白名单规则 / {{action_name}}",
           "range": false,
           "refId": "B"
         }
@@ -1578,25 +1581,26 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 当前管理的证书总数。",
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": { "mode": "thresholds" },
           "min": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [{ "color": "blue", "value": null }]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 62 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 62 },
       "id": 28,
       "options": {
-        "colorMode": "value",
+        "colorMode": "background",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical",
+        "justifyMode": "center",
+        "orientation": "horizontal",
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto",
         "wideLayout": true
@@ -1610,25 +1614,38 @@
           "legendFormat": "证书总数",
           "range": false,
           "refId": "A"
+        }
+      ],
+      "title": "证书总数",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "SafeLine 报告为受信任的证书数量。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
         },
-        {
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "editorMode": "code",
-          "expr": "sum(safeline_certificate_expired{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
-          "instant": true,
-          "legendFormat": "已过期",
-          "range": false,
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "editorMode": "code",
-          "expr": "sum(safeline_certificate_revoked{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
-          "instant": true,
-          "legendFormat": "已吊销",
-          "range": false,
-          "refId": "C"
-        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 62 },
+      "id": 38,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "editorMode": "code",
@@ -1636,10 +1653,96 @@
           "instant": true,
           "legendFormat": "受信任",
           "range": false,
-          "refId": "D"
+          "refId": "A"
         }
       ],
-      "title": "证书状态",
+      "title": "受信任证书",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "已超过有效期的证书数量；大于 0 时显示红色。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 62 },
+      "id": 39,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "sum(safeline_certificate_expired{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
+          "instant": true,
+          "legendFormat": "已过期",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "已过期证书",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "description": "已被吊销的证书数量；大于 0 时显示红色。",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 62 },
+      "id": 40,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "editorMode": "code",
+          "expr": "sum(safeline_certificate_revoked{job=~\"$job\",instance=~\"$instance\"}) or vector(0)",
+          "instant": true,
+          "legendFormat": "已吊销",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "已吊销证书",
       "type": "stat"
     },
     {
@@ -1660,7 +1763,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 62 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 66 },
       "id": 29,
       "options": {
         "displayMode": "gradient",
@@ -1755,6 +1858,6 @@
   "timezone": "browser",
   "title": "SafeLine Exporter Overview",
   "uid": "safeline-exporter-overview",
-  "version": 4,
+  "version": 6,
   "weekStart": ""
 }

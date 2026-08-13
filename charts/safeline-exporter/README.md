@@ -26,7 +26,7 @@ Install or upgrade the chart:
 helm upgrade --install safeline-exporter ./charts/safeline-exporter \
   --namespace monitoring \
   --set image.repository=registry.example.com/monitoring/safeline-exporter \
-  --set image.tag=0.3.0 \
+  --set image.tag=0.3.1 \
   --set safeline.address=https://safeline.example.com \
   --set existingSecret=safeline-exporter
 ```

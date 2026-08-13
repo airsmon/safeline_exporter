@@ -113,9 +113,9 @@ SafeLine 9.3.11 uses `upstream=true` for upstream-service responses and `upstrea
 |---|---|
 | `safeline_attack_logs_window{window}` | Total raw detection-log records reported by the API |
 | `safeline_attack_logs_fetched` | Raw records fetched for aggregation during the scrape |
-| `safeline_attack_log_records_by_action_window{action,window}` | Records by normalized action |
-| `safeline_attack_log_records_by_type_window{attack_type,window}` | Records by SafeLine attack type |
-| `safeline_attack_log_records_by_risk_window{risk_level,window}` | Records by risk level |
+| `safeline_attack_log_records_by_action_window{action,action_name,window}` | Records by normalized action; `action_name` is the Chinese display name |
+| `safeline_attack_log_records_by_type_window{attack_type,attack_type_name,window}` | Records by SafeLine attack type; the raw numeric value is retained and `attack_type_name` follows the SafeLine UI enum |
+| `safeline_attack_log_records_by_risk_window{risk_level,risk_level_name,window}` | Records by risk level; `risk_level_name` maps 0–3 to unclassified, low, medium and high |
 | `safeline_attack_log_records_by_module_window{module,window}` | Records by detection module |
 | `safeline_attack_log_records_by_country_window{country,window}` | Records by country |
 | `safeline_attack_log_records_by_protocol_window{protocol,window}` | Records by SafeLine protocol value |
@@ -146,9 +146,9 @@ Each dimension is aggregated independently. The exporter deliberately avoids cro
 |---|---|
 | `safeline_rule_attack_logs_window{window}` | Total raw rule-log records reported by the API |
 | `safeline_rule_attack_logs_fetched` | Rule-log records fetched for aggregation during the scrape |
-| `safeline_rule_attack_log_records_by_action_window{action,window}` | Rule records by action |
-| `safeline_rule_attack_log_records_by_type_window{attack_type,window}` | Rule records by SafeLine attack type |
-| `safeline_rule_attack_log_records_by_risk_window{risk_level,window}` | Rule records by risk level |
+| `safeline_rule_attack_log_records_by_action_window{action,action_name,window}` | Rule records by action, with a Chinese display name |
+| `safeline_rule_attack_log_records_by_type_window{attack_type,attack_type_name,window}` | Rule records by raw SafeLine attack type and its SafeLine UI display name |
+| `safeline_rule_attack_log_records_by_risk_window{risk_level,risk_level_name,window}` | Rule records by raw risk level and its display name |
 | `safeline_rule_attack_log_records_by_module_window{module,window}` | Rule records by module |
 | `safeline_rule_attack_log_records_by_country_window{country,window}` | Rule records by country |
 | `safeline_rule_attack_log_records_by_protocol_window{protocol,window}` | Rule records by protocol |

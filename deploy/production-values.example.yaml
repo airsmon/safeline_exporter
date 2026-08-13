@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/airsmon/safeline_exporter
-  tag: "0.3.0"
+  tag: "0.3.1"
   pullPolicy: IfNotPresent
 
 existingSecret: safeline-exporter

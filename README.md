@@ -83,11 +83,11 @@ make build
 ## Docker
 
 ```bash
-docker build -t safeline-exporter:0.3.0 .
+docker build -t safeline-exporter:0.3.1 .
 docker run --rm -p 9719:9719 \
   -e SAFELINE_ADDRESS='https://safeline.example.com' \
   -e SAFELINE_API_TOKEN \
-  safeline-exporter:0.3.0
+  safeline-exporter:0.3.1
 ```
 
 The multi-stage image builds a static binary, includes only CA certificates and that binary in the runtime layer, and runs as numeric user `65532`.

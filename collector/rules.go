@@ -242,7 +242,7 @@ func writeRuleLogs(m *metricWriter, data ruleLogMetrics, window time.Duration) {
 
 func writeRuleLogDimension(m *metricWriter, name, help, labelName string, values map[string]float64, window time.Duration) {
 	for value, count := range values {
-		m.metric(name, help, "gauge", map[string]string{"window": window.String(), labelName: value}, count)
+		m.metric(name, help, "gauge", attackLogDimensionLabels(window.String(), labelName, value), count)
 	}
 }
 

@@ -40,7 +40,7 @@ func TestExporterMetrics(t *testing.T) {
 			"/api/open/events":                      `{"data":{"nodes":[{"ip":"192.0.2.1","country":"CN","protocol":1,"start_at":1700000000000,"end_at":1700000002000,"updated_at":1700000002000,"deny_count":4,"pass_count":1,"finished":true},{"ip":"192.0.2.2","country":"US","protocol":1,"deny_count":2,"pass_count":0,"finished":false}],"total":2},"err":null,"msg":""}`,
 			"/api/open/events/rule":                 `{"data":{"nodes":[{"ip":"192.0.2.3","deny_count":3,"pass_count":0,"finished":true,"start_at":100000,"end_at":102000,"updated_at":102000}],"total":1},"err":null,"msg":""}`,
 			"/api/open/records":                     `{"data":{"data":[{"attack_type":0,"action":1,"risk_level":3,"module":"m_sqli","country":"CN","protocol":1,"status_code":403,"method":"POST","timestamp":1700000000000},{"attack_type":0,"action":1,"risk_level":3,"module":"m_sqli","country":"CN","protocol":1,"status_code":403,"method":"POST","timestamp":1700000001000}],"total":2},"err":null,"msg":""}`,
-			"/api/open/records/rule":                `{"data":{"data":[{"attack_type":0,"action":1,"risk_level":0,"module":"blacklist","country":"CN","protocol":1,"status_code":403,"method":"GET","timestamp":200}],"total":1},"err":null,"msg":""}`,
+			"/api/open/records/rule":                `{"data":{"data":[{"attack_type":-3,"action":1,"risk_level":0,"module":"blacklist","country":"CN","protocol":1,"status_code":403,"method":"GET","timestamp":200}],"total":1},"err":null,"msg":""}`,
 			"/api/open/security_posture/statistics": `{"data":{"attack_deny":2,"attack_allow":1,"black_hit":3,"black_deny":3,"black_allow":0,"white_hit":1,"acl_hit":1,"waiting_hit":0,"challenge_deny":0,"challenge_allow":0,"auth_deny":0,"auth_allow":0,"anti_tamper":[{"site-a":"5"},{"site-b":"3"}]},"err":null,"msg":""}`,
 			"/api/stat/qps":                         `{"data":{"nodes":[{"time":"11:59:50","listener-a":1},{"time":"11:59:55","listener-a":5},{"time":"12:00:00","listener-a":6,"listener-b":4}]},"err":null,"msg":""}`,
 			"/api/stat/advance/access":              `{"data":{"access":30,"session":4,"ip":5,"pv":6},"err":null,"msg":""}`,
@@ -121,8 +121,12 @@ func TestExporterMetrics(t *testing.T) {
 		`safeline_unique_visitors_window{window="24h0m0s"} 4`,
 		`safeline_qps_recent_max 2`,
 		`safeline_attack_log_records_by_module_window{module="m_sqli",window="24h0m0s"} 2`,
-		`safeline_attack_log_records_by_action_window{action="deny",window="24h0m0s"} 2`,
+		`safeline_attack_log_records_by_action_window{action="deny",action_name="拦截",window="24h0m0s"} 2`,
+		`safeline_attack_log_records_by_type_window{attack_type="0",attack_type_name="SQL 注入",window="24h0m0s"} 2`,
+		`safeline_attack_log_records_by_risk_window{risk_level="3",risk_level_name="高危",window="24h0m0s"} 2`,
 		`safeline_rule_attack_logs_window{window="24h0m0s"} 1`,
+		`safeline_rule_attack_log_records_by_type_window{attack_type="-3",attack_type_name="黑名单",window="24h0m0s"} 1`,
+		`safeline_rule_attack_log_records_by_risk_window{risk_level="0",risk_level_name="未分级",window="24h0m0s"} 1`,
 		`safeline_security_posture_events_window{action="deny",category="attack",window="24h0m0s"} 2`,
 		`safeline_anti_tamper_events_window{window="24h0m0s"} 8`,
 		`safeline_client_requests_window{kind="os",name="Linux",window="24h0m0s"} 10`,
@@ -357,6 +361,31 @@ func TestSumAntiTamperEvents(t *testing.T) {
 				t.Fatal("malformed anti-tamper record was accepted")
 			}
 		})
+	}
+}
+
+func TestAttackLogDisplayNames(t *testing.T) {
+	for value, want := range map[string]string{
+		"-3": "黑名单",
+		"-2": "白名单",
+		"0":  "SQL 注入",
+		"29": "模板注入",
+		"64": "Cookie 篡改",
+		"65": "未知 (65)",
+	} {
+		if got := attackTypeDisplayName(value); got != want {
+			t.Errorf("attackTypeDisplayName(%q) = %q, want %q", value, got, want)
+		}
+	}
+	for value, want := range map[string]string{"0": "未分级", "1": "低危", "2": "中危", "3": "高危", "4": "未知 (4)"} {
+		if got := riskLevelDisplayName(value); got != want {
+			t.Errorf("riskLevelDisplayName(%q) = %q, want %q", value, got, want)
+		}
+	}
+	for value, want := range map[string]string{"pass": "放行", "deny": "拦截", "unknown": "未知"} {
+		if got := attackActionDisplayName(value); got != want {
+			t.Errorf("attackActionDisplayName(%q) = %q, want %q", value, got, want)
+		}
 	}
 }
 
