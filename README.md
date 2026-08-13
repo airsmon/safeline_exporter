@@ -2,7 +2,7 @@
 
 Prometheus exporter for the SafeLine WAF Open API. The exporter uses read-only SafeLine endpoints and the official Prometheus Go client for collection, descriptor validation, exposition, Go/process metrics, and HTTP instrumentation.
 
-<img width="1856" height="2669" alt="FireShot Capture 002 - SafeLine Exporter Overview - Dashboards - Grafana_ -  grafana infra daocloud io  (1)" src="https://github.com/user-attachments/assets/74193aa2-80b1-46a9-865b-d03cc40adb39" />
+<img width="1856" height="2821" alt="FireShot Capture 007 - SafeLine Exporter Overview - Dashboards - Grafana_ -  grafana infra daocloud io" src="https://github.com/user-attachments/assets/bc59f9a8-05e4-43b1-844d-1656ed08c4d4" />
 
 ## Features
 
