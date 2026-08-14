@@ -14,11 +14,11 @@
 1. In Grafana, open **Dashboards → New → Import**.
 2. Upload `safeline-exporter-overview.json`.
 3. Open the imported dashboard and select a value for the **Prometheus** variable.
-4. Select the desired Prometheus `job` and exporter `instance` values.
+4. Select the desired Prometheus `job` and SafeLine target (`instance`) values.
 
 The dashboard datasource is referenced through the `$datasource` variable, so the JSON does not embed a datasource UID. The `job` and `instance` variables are populated from `safeline_up`.
 
-All selected instances are summed in aggregate panels. If several exporter replicas scrape the same SafeLine API, select one replica in the **Exporter instance** variable to avoid double counting.
+All selected targets are summed in aggregate panels. The Helm chart uses the SafeLine URL as the `instance` label by default, so each target is easy to identify.
 
 Metrics with a `_window` suffix are SafeLine's rolling 24-hour gauges, not Prometheus counters. Panels therefore display their values directly instead of applying `rate()` or `increase()`.
 

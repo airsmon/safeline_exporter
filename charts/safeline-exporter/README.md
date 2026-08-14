@@ -97,6 +97,7 @@ helm upgrade --install safeline-exporter ./charts/safeline-exporter \
 | `exporter.port` | `9719` | Exporter container port |
 | `service.port` | `9719` | Kubernetes Service port |
 | `serviceMonitor.enabled` | `false` | Create a Prometheus Operator ServiceMonitor |
+| `serviceMonitor.instanceLabel` | empty | Prometheus `instance`; defaults to `safeline.address` without a trailing slash |
 | `grafanaDashboard.enabled` | `false` | Create a Grafana sidecar Dashboard ConfigMap |
 
 See [`values.yaml`](values.yaml) for probes, resource controls, scheduling,

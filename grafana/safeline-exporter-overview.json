@@ -1837,7 +1837,7 @@
         "definition": "label_values(safeline_up{job=~\"$job\"}, instance)",
         "hide": 0,
         "includeAll": true,
-        "label": "Exporter instance",
+        "label": "SafeLine target",
         "multi": true,
         "name": "instance",
         "options": [],

@@ -35,6 +35,8 @@ serviceMonitor:
   namespace: monitoring
   interval: 60s
   scrapeTimeout: 30s
+  # Defaults to safeline.address. Override only when a different display name is needed.
+  instanceLabel: ""
   labels:
     release: kube-prometheus-stack
 

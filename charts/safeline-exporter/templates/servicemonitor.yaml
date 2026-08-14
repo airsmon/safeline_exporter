@@ -26,8 +26,11 @@ spec:
       interval: {{ .Values.serviceMonitor.interval | quote }}
       scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout | quote }}
       honorLabels: {{ .Values.serviceMonitor.honorLabels }}
-      {{- with .Values.serviceMonitor.relabelings }}
       relabelings:
+        - action: replace
+          targetLabel: instance
+          replacement: {{ default .Values.safeline.address .Values.serviceMonitor.instanceLabel | trimSuffix "/" | quote }}
+      {{- with .Values.serviceMonitor.relabelings }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.serviceMonitor.metricRelabelings }}
